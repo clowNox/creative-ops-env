@@ -1,0 +1,11 @@
+[project]
+name = "creative-ops-env"
+version = "0.1.0"
+description = "Creative Ops OpenEnv"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic",
+    "fastapi",
+    "uvicorn"
+]
