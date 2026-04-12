@@ -1,14 +1,25 @@
-from env import CreativeOpsEnv
-from models import Action
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
-env = CreativeOpsEnv()
+app = FastAPI()
 
-obs = env.reset()
-print("Initial Observation:", obs)
+@app.get("/", response_class=HTMLResponse)
+def root():
+    return """
+    <html>
+        <head><title>Creative Ops Env</title></head>
+        <body>
+            <h1>Creative Ops Env is running 🚀</h1>
+            <p>RL environment for project allocation</p>
+            <p>Check health: <a href="/health">/health</a></p>
+        </body>
+    </html>
+    """
 
-action = Action(assignments=[{"lead_id": "L1", "designer_id": "D3"}])
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
-obs, reward, done, info = env.step(action)
-
-print("After Step:", obs)
-print("Reward:", reward)
+@app.get("/ping")
+def ping():
+    return {"message": "Creative Ops Env is running"}

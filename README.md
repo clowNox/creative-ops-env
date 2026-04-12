@@ -21,3 +21,10 @@ Minimal OpenEnv-style environment simulating a marketing agency project coordina
 ```bash
 pip install -r requirements.txt
 python inference.py
+
+
+---
+title: Creative Ops Env
+sdk: docker
+app_port: 7860
+---
