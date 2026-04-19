@@ -331,7 +331,12 @@ class CreativeOpsEnv:
             designer = next(d for d in self.state_data.designers if d.designer_id == did)
 
             if designer.primary_skill != lead.required_skill:
-                score -= 0.5
+                if lead.required_skill in getattr(designer, "secondary_skills", []):
+                    # Slight penalty for using a secondary skill instead of primary
+                    score -= 0.1
+                else:
+                    score -= 0.5
+
             if not designer.available:
                 score -= 0.6
             if designer.zone != lead.zone:
@@ -350,9 +355,12 @@ class CreativeOpsEnv:
 
     # ---------- OBS ----------
     def _get_obs(self):
+        # Only include the full Lead objects that are actually pending
+        pending_lead_objs = [l for l in self.state_data.leads if l.lead_id in self.state_data.pending_leads]
+
         return Observation(
             task_id=self.state_data.task_id,
-            pending_leads=self.state_data.pending_leads,
+            pending_leads=pending_lead_objs,
             designers=self.state_data.designers,
             current_assignments=self.state_data.assignments,
             event_log=self.state_data.event_log,

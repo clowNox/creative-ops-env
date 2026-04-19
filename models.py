@@ -50,7 +50,7 @@ class Action(BaseModel):
 
 class Observation(BaseModel):
     task_id: str
-    pending_leads: List[str]
+    pending_leads: List[Lead]
     designers: List[Designer]
     current_assignments: Dict[str, str]
     event_log: List[str]
