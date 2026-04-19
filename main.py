@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from models import DesignerApplication, Designer
+from parser import parse_application
 
 app = FastAPI()
 
@@ -23,3 +25,11 @@ def health():
 @app.get("/ping")
 def ping():
     return {"message": "Creative Ops Env is running"}
+
+@app.post("/evaluate-designer", response_model=Designer)
+def evaluate_designer(application: DesignerApplication):
+    """
+    Ingests a designer's resume and portfolio, and returns a structured Designer profile.
+    """
+    designer = parse_application(application)
+    return designer
