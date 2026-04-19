@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from models import DesignerApplication, Designer, Project, Lead
+from typing import List
+from parser import parse_application
+from dissector import dissect_project
 
 app = FastAPI()
 
@@ -23,3 +27,19 @@ def health():
 @app.get("/ping")
 def ping():
     return {"message": "Creative Ops Env is running"}
+
+@app.post("/evaluate-designer", response_model=Designer)
+def evaluate_designer(application: DesignerApplication):
+    """
+    Ingests a designer's resume and portfolio, and returns a structured Designer profile.
+    """
+    designer = parse_application(application)
+    return designer
+
+@app.post("/dissect-project", response_model=List[Lead])
+def dissect_project_endpoint(project: Project):
+    """
+    Ingests a new high-level Project and breaks it down into individual Lead tasks.
+    """
+    leads = dissect_project(project)
+    return leads
