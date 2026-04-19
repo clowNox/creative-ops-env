@@ -25,8 +25,18 @@ class DesignerApplication(BaseModel):
     zone: str
 
 
+class Project(BaseModel):
+    project_id: str
+    client_name: str
+    description: str
+    total_budget: str
+    zone: str
+    priority: str
+
+
 class Lead(BaseModel):
     lead_id: str
+    project_id: Optional[str] = None
     client_name: str
     required_skill: str
     zone: str

@@ -240,6 +240,21 @@ class CreativeOpsEnv:
             ]
         }
 
+    def add_project_leads(self, project: Project):
+        """
+        Dynamically adds parsed leads from a new project into the current environment state.
+        """
+        from dissector import dissect_project
+        new_leads = dissect_project(project)
+
+        # Add to state
+        for lead in new_leads:
+            self.state_data.leads.append(lead)
+            self.state_data.pending_leads.append(lead.lead_id)
+
+        self.state_data.event_log.append(f"Added {len(new_leads)} new leads from project {project.project_id}")
+        return self._get_obs()
+
     # ---------- RESET ----------
     def reset(self):
         self.task_index = (self.task_index + 1) % len(self.tasks)
