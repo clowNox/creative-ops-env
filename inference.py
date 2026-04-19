@@ -81,10 +81,20 @@ if __name__ == "__main__":
         done = False
         step_idx = 1
         while not done:
+            # Print tasks that are in review
+            in_review = [l.lead_id for l in env.state().leads if l.status == "in_review"]
+            if in_review:
+                print(f"[STEP {step_idx}] Tasks In Review: {in_review}")
+
             action = policy(obs)
             print(f"[STEP {step_idx}] Pending Leads: {[l.lead_id for l in obs.pending_leads]} | Action: {action.assignments}")
 
             obs, reward, done, info = env.step(action)
+
+            # Print events (like approvals or rejections)
+            if obs.event_log:
+                print(f"   > Events: {obs.event_log[-2:]}") # Print the last few events
+
             step_idx += 1
 
         print(f"[END] Score: {reward.score:.2f} | Total Steps Taken: {step_idx - 1}")

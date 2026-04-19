@@ -1,6 +1,7 @@
 from typing import List, Dict
 from models import *
 import copy
+import random
 
 
 class CreativeOpsEnv:
@@ -295,18 +296,32 @@ class CreativeOpsEnv:
         self.state_data.step_count += 1
         info = {"per_lead": {}}
 
-        # Process Time Progression: Complete in-progress tasks
-        # In a real system this would be probabilistic based on time. Here we just complete them on the next step.
+        # Process Time Progression: Review tasks in "in_review" state
+        for lead in list(self.state_data.leads):
+            if lead.status == "in_review":
+                did = self.state_data.assignments.get(lead.lead_id)
+                designer = next((d for d in self.state_data.designers if d.designer_id == did), None)
+
+                # Client approval probability is tied to the designer's portfolio score (default 80% if missing)
+                approval_chance = getattr(designer, "portfolio_score", 0.8) if designer else 0.8
+
+                if random.random() <= approval_chance:
+                    # Client Approves
+                    lead.status = "completed"
+                    if designer: designer.current_load -= 1
+                    self.state_data.event_log.append(f"Client approved Task {lead.lead_id}.")
+                else:
+                    # Client Rejects
+                    lead.status = "pending" # Send back to pending queue to be re-assigned
+                    if designer: designer.current_load -= 1
+                    del self.state_data.assignments[lead.lead_id]
+                    self.state_data.event_log.append(f"Client rejected Task {lead.lead_id}. Requires rework.")
+
+        # Process Time Progression: Move in-progress tasks to in_review
         for lead in self.state_data.leads:
             if lead.status == "in_progress":
-                lead.status = "completed"
-                # Free up the designer
-                did = self.state_data.assignments.get(lead.lead_id)
-                if did:
-                    designer = next((d for d in self.state_data.designers if d.designer_id == did), None)
-                    if designer:
-                        designer.current_load -= 1
-                self.state_data.event_log.append(f"Task {lead.lead_id} completed.")
+                lead.status = "in_review"
+                self.state_data.event_log.append(f"Task {lead.lead_id} submitted for client review.")
 
         # Process New Assignments
         for a in action.assignments:
