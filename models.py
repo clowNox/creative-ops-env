@@ -42,6 +42,8 @@ class Lead(BaseModel):
     zone: str
     priority: str
     budget_tier: str
+    depends_on: List[str] = []
+    status: str = "pending"
 
 
 class Action(BaseModel):

@@ -11,21 +11,43 @@ def dissect_project(project: Project) -> List[Lead]:
     desc = project.description.lower()
     leads = []
 
-    # Analyze required skills
+    # Variables to hold generated leads for dependency linking
+    branding_lead = None
+    ui_ux_lead = None
+
+    # Foundational Tasks (No dependencies)
     if "logo" in desc or "brand" in desc or "identity" in desc:
-        leads.append(_create_lead(project, "branding"))
-
-    if "video" in desc or "promo" in desc or "reel" in desc:
-        leads.append(_create_lead(project, "video_editing"))
-
-    if "social" in desc or "instagram" in desc or "post" in desc:
-        leads.append(_create_lead(project, "social_media"))
+        branding_lead = _create_lead(project, "branding")
+        leads.append(branding_lead)
 
     if "website" in desc or "app" in desc or "ui" in desc or "ux" in desc:
-        leads.append(_create_lead(project, "ui_ux"))
+        ui_ux_lead = _create_lead(project, "ui_ux")
+        # UI/UX might depend on branding if both are created
+        if branding_lead:
+            ui_ux_lead.depends_on.append(branding_lead.lead_id)
+        leads.append(ui_ux_lead)
 
     if "illustration" in desc or "drawing" in desc or "art" in desc:
-        leads.append(_create_lead(project, "illustration"))
+        ill_lead = _create_lead(project, "illustration")
+        if branding_lead:
+            ill_lead.depends_on.append(branding_lead.lead_id)
+        leads.append(ill_lead)
+
+    # Downstream Tasks (Depend on foundational tasks)
+    if "video" in desc or "promo" in desc or "reel" in desc:
+        video_lead = _create_lead(project, "video_editing")
+        if branding_lead:
+            video_lead.depends_on.append(branding_lead.lead_id)
+        leads.append(video_lead)
+
+    if "social" in desc or "instagram" in desc or "post" in desc:
+        social_lead = _create_lead(project, "social_media")
+        # Social media usually needs branding and UI assets first
+        if branding_lead:
+            social_lead.depends_on.append(branding_lead.lead_id)
+        if ui_ux_lead:
+            social_lead.depends_on.append(ui_ux_lead.lead_id)
+        leads.append(social_lead)
 
     # If no specific keywords matched, default to general design
     if not leads:

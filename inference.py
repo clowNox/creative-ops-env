@@ -58,15 +58,33 @@ def policy(obs):
 if __name__ == "__main__":
     env = CreativeOpsEnv()
 
-    for i in range(3):
+    from models import Project
+    from dissector import dissect_project
+
+    for i in range(4):
         print(f"\n[START TASK {i+1}]")
         obs = env.reset()
 
+        # For the 4th task, let's inject a complex DAG project to test dependencies
+        if i == 3:
+            print("--- Injecting Complex Project with Dependencies ---")
+            p = Project(
+                project_id="DAG_1",
+                client_name="TestCorp",
+                description="We need a new logo, an app ui, and 3 promo videos for instagram.",
+                total_budget="high",
+                zone="north",
+                priority="high"
+            )
+            obs = env.add_project_leads(p)
+
         done = False
+        step_idx = 1
         while not done:
             action = policy(obs)
-            print("[STEP]", action)
+            print(f"[STEP {step_idx}] Pending Leads: {[l.lead_id for l in obs.pending_leads]} | Action: {action.assignments}")
 
             obs, reward, done, info = env.step(action)
+            step_idx += 1
 
-        print("[END] Score:", reward.score)
+        print(f"[END] Score: {reward.score:.2f} | Total Steps Taken: {step_idx - 1}")

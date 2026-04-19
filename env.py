@@ -250,9 +250,9 @@ class CreativeOpsEnv:
         # Add to state
         for lead in new_leads:
             self.state_data.leads.append(lead)
-            self.state_data.pending_leads.append(lead.lead_id)
 
         self.state_data.event_log.append(f"Added {len(new_leads)} new leads from project {project.project_id}")
+        self._update_pending_leads()
         return self._get_obs()
 
     # ---------- RESET ----------
@@ -265,18 +265,50 @@ class CreativeOpsEnv:
             leads=copy.deepcopy(task["leads"]),
             designers=copy.deepcopy(task["designers"]),
             assignments={},
-            pending_leads=[l.lead_id for l in task["leads"]],
+            pending_leads=[], # Will be populated dynamically based on DAG
             step_count=0,
             disruption_triggered=False,
             event_log=[]
         )
+        self._update_pending_leads()
         return self._get_obs()
+
+    def _update_pending_leads(self):
+        """
+        Calculates which leads are available to be worked on.
+        A lead is pending if it is 'pending' AND all its dependencies are 'completed'.
+        """
+        completed_lead_ids = {l.lead_id for l in self.state_data.leads if l.status == "completed"}
+
+        # We need to rebuild the pending_leads list from scratch each time
+        # to ensure it only contains items that are actually pending.
+        new_pending_leads = []
+        for l in self.state_data.leads:
+            if l.status == "pending":
+                # Check if all dependencies are met
+                if all(dep in completed_lead_ids for dep in l.depends_on):
+                    new_pending_leads.append(l.lead_id)
+        self.state_data.pending_leads = new_pending_leads
 
     # ---------- STEP ----------
     def step(self, action: Action):
         self.state_data.step_count += 1
         info = {"per_lead": {}}
 
+        # Process Time Progression: Complete in-progress tasks
+        # In a real system this would be probabilistic based on time. Here we just complete them on the next step.
+        for lead in self.state_data.leads:
+            if lead.status == "in_progress":
+                lead.status = "completed"
+                # Free up the designer
+                did = self.state_data.assignments.get(lead.lead_id)
+                if did:
+                    designer = next((d for d in self.state_data.designers if d.designer_id == did), None)
+                    if designer:
+                        designer.current_load -= 1
+                self.state_data.event_log.append(f"Task {lead.lead_id} completed.")
+
+        # Process New Assignments
         for a in action.assignments:
             lid = a["lead_id"]
             did = a["designer_id"]
@@ -292,7 +324,10 @@ class CreativeOpsEnv:
 
             self.state_data.assignments[lid] = did
             self.state_data.pending_leads.remove(lid)
+            lead.status = "in_progress"
             designer.current_load += 1
+
+        self._update_pending_leads()
 
         # HARD TASK DISRUPTION
         if self.state_data.task_id == "hard_reassign_after_unavailable" and not self.state_data.disruption_triggered:
@@ -306,12 +341,15 @@ class CreativeOpsEnv:
             for lid, did in list(self.state_data.assignments.items()):
                 if did == "D2":
                     self.state_data.pending_leads.append(lid)
+                    lead = next((l for l in self.state_data.leads if l.lead_id == lid), None)
+                    if lead: lead.status = "pending"
                     del self.state_data.assignments[lid]
 
-            return self._get_obs(), Reward(score=0.0, breakdown={}), False, info
+            # In the new multi-step DAG system, we shouldn't return early and skip calculating the "done" condition
+            # The agent still needs to know if the simulation is over.
 
         reward = self._compute_reward(info)
-        done = True
+        done = all(l.status == "completed" for l in self.state_data.leads)
         return self._get_obs(), reward, done, info
 
     # ---------- REWARD ----------
@@ -322,7 +360,11 @@ class CreativeOpsEnv:
             score = 1.0
             did = self.state_data.assignments.get(lead.lead_id)
 
+            # Do not penalize leads that are currently blocked by dependencies and cannot be assigned yet
             if not did:
+                if lead.status == "pending" and lead.lead_id not in self.state_data.pending_leads:
+                    continue # Ignore blocked leads for reward calculation
+
                 if lead.priority == "high":
                     score -= 0.2
                 scores.append(max(0, score))
